@@ -67,27 +67,16 @@ if not taking alone, do below 5 times
 
 */
 
-// make global variables that need to be kept track of between function, so i dont have to keep passing them in. 
-let team1gamesWon = 0;  // # of games won by each team
-let team2gamesWon = 0;
-let team1pts = 0;  // # of pts won by each team
-let team2pts = 0;
-let team1tricks = 0;  // # of tricks won by each team
-let team2tricks = 0;
-let trump = -1;  // keep track of trump
-let whoCalledTrump = -1; // keep track of who called trump
-let takeItAlone = 0; // keep track of if someone took it alone
-let whoStartsTrick = 1;
+// make global variables that need to be kept track of between function, so i dont have to keep passing them in.
 
 // enums, class and array for concepts suit, rank, card, deck
-enum suit {
-	noTrump = 0,
+enum Suit {
 	hearts = 1,
 	diamonds = 2,
 	clubs = 3,
 	spades = 4,
 }
-enum rank {
+enum Rank {
 	nine = 9,
 	ten = 10,
 
@@ -96,32 +85,11 @@ enum rank {
 	queen = 12,
 	king = 13,
 	ace = 14,
-	left = 15,
-	right = 16,
 }
 // interface = class, for making your own type
-interface card {
-	suit: suit;
-	rank: rank;
-}
-// create sorted deck of 24 cards
-let deck: card[] = [];
-const DECKSIZE = 24;
-for (let i = suit.hearts; i <= suit.spades; i++) {
-	for (let j = rank.nine; j <= rank.ace; j++) {
-		let card: card = { suit: i, rank: j };
-		deck.push(card);
-	}
-}
-
-// randomize deck, by swapping nth card with a random card between nth and last position
-function shuffle(arrayName: any[]) {
-	for (let i = 0; i < arrayName.length; i++) {
-		let swapElementPosition = Math.floor(Math.random() * (arrayName.length - i)) + i;  // Math.random() gets x >= 0 && x < 1
-		let swappedElement = deck[swapElementPosition];
-		deck[swapElementPosition] = deck[i];
-		deck[i] = swappedElement;
-	}
+interface Card {
+	suit: Suit;
+	rank: Rank;
 }
 
 // enum, class, and array for concepts playerPosition, player, all players
@@ -131,15 +99,58 @@ enum playerPosition {
 	oppositeD = 2,
 	rightOfD = 3,
 }
+
 interface player {
 	playerName: string;
 	playerPosition: playerPosition;
-	playerHand: card[];
+	playerHand: Card[];
+}
+
+
+interface MatchState {
+	game: GameState;
+	trump: Suit;
+	dealer: number;
+	caller: number;
+	team1Tricks: number;
+	team2Tricks: number;
+	lastTrickWinner: number;
+	hands: Card[];
+	trumpCandidate: Card;
+	outThisRound: number;
+}
+
+
+interface GameState {
+	team1Points: number;
+	team2Points: number;
+	lastDealer: number;
+}
+
+
+// create sorted deck of 24 cards
+const deck: Card[] = [];
+const DECKSIZE = 24;
+for (let i = Suit.hearts; i <= Suit.spades; i++) {
+	for (let j = Rank.nine; j <= Rank.ace; j++) {
+		let card: Card = { suit: i, rank: j };
+		deck.push(card);
+	}
+}
+
+// randomize deck, by swapping nth card with a random card between nth and last position
+function shuffle(arr: any[]) {
+	for (let i = 1; i < arr.length; i++) {
+		let swapElementPosition = Math.floor(Math.random() * (i + 1));  // Math.random() gets x >= 0 && x < 1
+		let swappedElement = arr[swapElementPosition];
+		arr[swapElementPosition] = arr[i];
+		arr[i] = swappedElement;
+	}
 }
 
 let bob: player;
 bob.playerPosition = 0;
-bob.playerPosition = playerPosition.dealer; 
+bob.playerPosition = playerPosition.dealer;
 
 let players: player[] = addPlayers(); // team1 has positions 0, 2. team2 has positions 1,3. Adds players names. 
 function addPlayers() {
@@ -151,39 +162,39 @@ function addPlayers() {
 		}
 		else {
 			name = prompt("Team 2: What are your names?\n", "benji")
-        }
+		}
 		let person: player = { playerName: name, playerPosition: null, playerHand: null };
 		players.push(person);
 	}
 	// team1 players[0] && [2], team2 players[1] && [3]
-	let swapPlayer: player = players[1]; 
+	let swapPlayer: player = players[1];
 	players[1] = players[2];
-	players[2] = swapPlayer; 
+	players[2] = swapPlayer;
 	return players;
 }
-setPlayersPosition(players); 
+setPlayersPosition(players);
 function setPlayersPosition(players: player[]) {
 	for (let i = 0; i < 4; i++) {
 		players[i].playerPosition = i;
-    }
+	}
 }
 
 // deal the hand
 let dealersCard = dealHand(players, deck);
-function dealHand(players: player[], deck: card[]) {
+function dealHand(players: player[], deck: Card[]) {
 	for (let i = 0; i < 4; i++) {
 		for (let j = 0; j < 5; j++) {
 			players[i].playerHand[j] = deck[i * 5 + j];
 		}
 	}
 
-	return deck[4*5];
+	return deck[4 * 5];
 }
 
 // show players what cards they have, and what the dealer's card is.
 
 //calling trump
-function pickItUp(players: player[], dealersCard: card) {
+function pickItUp(players: player[], dealersCard: Card) {
 	for (let i = 1; i < 5; i++) {
 		let x = i % 4;
 		for (let j = 0; j < 4; j++) {
@@ -193,26 +204,26 @@ function pickItUp(players: player[], dealersCard: card) {
 					let yes = prompt("Would you like to take it alone?\n", "yes/no");
 					if (yes == "yes") {
 						takeItAlone = 1;  // set takeItAlone
-                    }
+					}
 					trump = dealersCard.suit;  // set trump
 					whoCalledTrump = j;  // set whoCalledTrump
 					for (let k = 0; k < 4; k++) {  // have dealer actually pick up the card
 						if (players[k].playerPosition == playerPosition.dealer) {
 							let discard = +prompt("Which card would you like to discard?\n", "1, 2, 3, 4, 5");
 							players[k].playerHand[<any>discard - 1] = dealersCard;
-                        }
+						}
 					}
-					j = 4; 
+					j = 4;
 					i = 5; // effectively exit both for loops
 				}
-            }
-        }
+			}
+		}
 	}
 	if (trump == -1) {
 		callTrump(players, dealersCard);
-    }
+	}
 }
-function callTrump(players: player[], dealersCard: card) {
+function callTrump(players: player[], dealersCard: Card) {
 	for (let i = 1; i < 5; i++) {
 		let x = i % 4;
 		for (let j = 0; j < 4; j++) {
@@ -225,24 +236,24 @@ function callTrump(players: player[], dealersCard: card) {
 							takeItAlone = 1;  // set takeItAlone
 						}
 						if (callIt == "hearts") {
-							trump = suit.hearts;  // set trump
+							trump = Suit.hearts;  // set trump
 							whoCalledTrump = j;  // set whoCalledTrump
 						}
 						else if (callIt == "diamons") {
-							trump = suit.diamonds;  // set trump
+							trump = Suit.diamonds;  // set trump
 							whoCalledTrump = j;  // set whoCalledTrump
 						}
 						else if (callIt == "clubs") {
-							trump = suit.clubs;  // set trump
+							trump = Suit.clubs;  // set trump
 							whoCalledTrump = j;  // set whoCalledTrump
 						}
 						else if (callIt == "spades") {
-							trump = suit.spades;  // set trump
+							trump = Suit.spades;  // set trump
 							whoCalledTrump = j;  // set whoCalledTrump
 						}
 						else {
 							alert("something went wrong in callTrump function\n");
-                        }
+						}
 
 					}
 					j = 4;
@@ -255,23 +266,23 @@ function callTrump(players: player[], dealersCard: card) {
 						takeItAlone = 1;  // set takeItAlone
 					}
 					if (callIt == "hearts") {
-						trump = suit.hearts;  // set trump
+						trump = Suit.hearts;  // set trump
 						whoCalledTrump = j;  // set whoCalledTrump
 					}
 					else if (callIt == "diamons") {
-						trump = suit.diamonds;  // set trump
+						trump = Suit.diamonds;  // set trump
 						whoCalledTrump = j;  // set whoCalledTrump
 					}
 					else if (callIt == "clubs") {
-						trump = suit.clubs;  // set trump
+						trump = Suit.clubs;  // set trump
 						whoCalledTrump = j;  // set whoCalledTrump
 					}
 					else if (callIt == "spades") {
-						trump = suit.spades;  // set trump
+						trump = Suit.spades;  // set trump
 						whoCalledTrump = j;  // set whoCalledTrump
 					}
 					else if (callIt == "no trump") {
-						trump = suit.noTrump;  // set trump
+						trump = Suit.noTrump;  // set trump
 						whoCalledTrump = j;  // set whoCalledTrump
 					}
 					else {
@@ -279,7 +290,7 @@ function callTrump(players: player[], dealersCard: card) {
 					}
 				}
 				j = 4;
-				i = 5; 
+				i = 5;
 			}
 		}
 	}
@@ -288,8 +299,8 @@ function callTrump(players: player[], dealersCard: card) {
 
 // playing 1 trick
 function playTrick(plyers: player[]) {
-	let firstcardPlayed: card = null;  // for following suit
-	let highestCard: card = null;  // keeping track of the winning card
+	let firstcardPlayed: Card = null;  // for following suit
+	let highestCard: Card = null;  // keeping track of the winning card
 	let playerWithHighestCard = -1; // keeping track of whose winning the trick
 	for (let i = whoStartsTrick; i < 5; i++) {
 		let x = i % 4;
@@ -298,19 +309,19 @@ function playTrick(plyers: player[]) {
 				if (takeItAlone = 1) {
 					if (whoCalledTrump == j || whoCalledTrump % 2 != j % 2) {
 						let cardPlayed = +prompt("Which card would you like to play?\n", "1, 2, 3, 4, 5");
-						let newCard: card = players[j].playerHand[cardPlayed - 1];
+						let newCard: Card = players[j].playerHand[cardPlayed - 1];
 						if (newCardHigher(newCard, highestCard)) {
 							highestCard = newCard;
 							playerWithHighestCard = j;
 							whoStartsTrick = players[j].playerPosition;
-                        }
+						}
 						players[j].playerHand[cardPlayed - 1] = null;
 						j = 4; // move to next player
 					}
 				}
 				else {
 					let cardPlayed = +prompt("Which card would you like to play?\n", "1, 2, 3, 4, 5");
-					let newCard: card = players[j].playerHand[cardPlayed - 1];
+					let newCard: Card = players[j].playerHand[cardPlayed - 1];
 					if (newCardHigher(newCard, highestCard)) {
 						highestCard = newCard;
 						playerWithHighestCard = j;
@@ -318,22 +329,22 @@ function playTrick(plyers: player[]) {
 					}
 					players[j].playerHand[cardPlayed - 1] = null;
 					j = 4;  // move to next player
-                }
-            }
-        }
+				}
+			}
+		}
 	}
 	if (playerWithHighestCard % 2 == 0) {
 		team1tricks++;
 	}
 	else {
-		team2tricks++; 
-    }
+		team2tricks++;
+	}
 }
 
-function newCardHigher(newCard: card, highestCard: card) {
+function newCardHigher(newCard: Card, highestCard: Card) {
 	if (highestCard == null) {
 		return true;
-    }
+	}
 }
 
 
@@ -356,7 +367,7 @@ function incrementPlayersPosition(players: player[]) {
 }
 
 
-function rankString(card: card) {
+function rankString(card: Card) {
 	let rank: string = null;
 	if (card.rank == 9) {
 		rank = "nine";
@@ -378,11 +389,11 @@ function rankString(card: card) {
 	}
 	else {
 		alert("error in rankString function\n");
-    }
+	}
 	return rank;
 }
 
-function suitString(card: card) {
+function suitString(card: Card) {
 	let suit: string = null;
 	if (card.suit == 1) {
 		suit = "hearts";
